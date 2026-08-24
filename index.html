@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>CSV Workbook Builder</title>
+		<!-- Tailwind CSS -->
+		<script src="https://cdn.tailwindcss.com"></script>
+		<!-- SheetJS (xlsx) Library -->
+		<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+	</head>
+	<body
+		class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-4">
+		<div
+			class="max-w-md w-full bg-slate-800/80 backdrop-blur-md border border-slate-700 p-6 rounded-2xl shadow-2xl">
+			<div class="text-center mb-6">
+				<h1 class="text-2xl font-bold tracking-tight text-white">
+					CSV Workbook Builder
+				</h1>
+				<p class="text-xs text-slate-400 mt-1">
+					Combine multiple CSV files into separate Excel sheets.
+				</p>
+			</div>
+
+			<!-- Upload Input -->
+			<div class="space-y-4">
+				<div
+					class="border-2 border-dashed border-slate-600 hover:border-indigo-500 rounded-xl p-6 text-center transition cursor-pointer relative bg-slate-900/40">
+					<input
+						type="file"
+						id="csvFiles"
+						multiple
+						accept=".csv"
+						class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+					<div class="text-slate-300 text-sm">
+						<p class="font-medium">Click or drag CSV files here</p>
+						<p class="text-xs text-slate-500 mt-1">Multiple files supported</p>
+					</div>
+				</div>
+
+				<!-- File Count Indicator -->
+				<div
+					id="fileCount"
+					class="text-xs text-indigo-400 font-medium text-center hidden"></div>
+
+				<!-- Action Button -->
+				<button
+					id="mergeBtn"
+					disabled
+					class="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium py-2.5 px-4 rounded-xl transition duration-200 shadow-lg shadow-indigo-600/20">
+					Build & Download Workbook
+				</button>
+			</div>
+		</div>
+
+		<script>
+			const fileInput = document.getElementById("csvFiles");
+			const mergeBtn = document.getElementById("mergeBtn");
+			const fileCount = document.getElementById("fileCount");
+
+			let selectedFiles = [];
+
+			fileInput.addEventListener("change", (e) => {
+				selectedFiles = Array.from(e.target.files);
+				if (selectedFiles.length > 0) {
+					fileCount.textContent = `${selectedFiles.length} file(s) selected`;
+					fileCount.classList.remove("hidden");
+					mergeBtn.disabled = false;
+				} else {
+					fileCount.classList.add("hidden");
+					mergeBtn.disabled = true;
+				}
+			});
+
+			mergeBtn.addEventListener("click", async () => {
+				if (selectedFiles.length === 0) return;
+
+				mergeBtn.textContent = "Processing...";
+				mergeBtn.disabled = true;
+
+				// 1. Create a new Excel Workbook
+				const workbook = XLSX.utils.book_new();
+
+				for (const file of selectedFiles) {
+					// Read CSV text content
+					const text = await file.text();
+
+					// Parse CSV directly into a worksheet
+					const tempWb = XLSX.read(text, { type: "string" });
+					const firstSheetName = tempWb.SheetNames[0];
+					const worksheet = tempWb.Sheets[firstSheetName];
+
+					// Trim file extension and limit sheet name to 31 chars (Excel standard)
+					let sheetName = file.name.replace(/\.[^/.]+$/, "").substring(0, 31);
+
+					// Append worksheet to workbook
+					XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+				}
+
+				// 2. Download the final .xlsx workbook
+				XLSX.writeFile(workbook, "workbook.xlsx");
+
+				mergeBtn.textContent = "Build & Download Workbook";
+				mergeBtn.disabled = false;
+			});
+		</script>
+	</body>
+</html>
